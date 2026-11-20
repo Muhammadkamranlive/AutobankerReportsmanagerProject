@@ -1,0 +1,209 @@
+<app-report-data-builder [open]="showDataBuilder()" [apiUrl]="apiUrl" [binding]="dataBinding()" (closed)="showDataBuilder.set(false)" (applied)="applyReportData($event)" />
+@if (showTestReports()) { <app-report-test-page [apiUrl]="apiUrl" [initialId]="serverTemplateId()" (closed)="showTestReports.set(false)" (opened)="openServerTemplate($event)" /> }
+<div [attr.inert]="showTestReports() ? '' : null" class="flex h-screen min-h-[620px] flex-col overflow-hidden bg-[#edf0ee] text-[#202723]">
+  <header class="topbar flex items-center gap-2 border-b border-[#d8ded9] bg-white px-3">
+    <div class="brand flex h-full shrink-0 items-center gap-2 border-r border-[#e1e5e2] pr-4">
+      <span class="brand-mark">A</span>
+      <span class="whitespace-nowrap text-[13px] font-semibold">Autobanker Reports Manager</span>
+    </div>
+    <input class="template-name" aria-label="Template name" [ngModel]="template().name" (ngModelChange)="store.setTemplate({ name: $event })" />
+    <select class="small-select" aria-label="Paper size" [ngModel]="template().page.size" (ngModelChange)="setPageSize($event)">
+      <option value="A4">A4</option><option value="Letter">Letter</option><option value="Legal">Legal</option>
+    </select>
+    <select class="small-select orientation" aria-label="Orientation" [ngModel]="template().page.orientation" (ngModelChange)="setPageSize(template().page.size, $event)">
+      <option value="portrait">Portrait</option><option value="landscape">Landscape</option>
+    </select>
+    <span class="toolbar-divider"></span>
+    <button class="icon-btn" title="Undo" (click)="store.undo()">↶</button>
+    <button class="icon-btn" title="Redo" (click)="store.redo()">↷</button>
+    <span class="toolbar-divider"></span>
+    <button class="icon-btn" title="Zoom out" (click)="zoomBy(-0.1)">−</button>
+    <span class="zoom-value">{{ Math.round(zoom() * 100) }}%</span>
+    <button class="icon-btn" title="Zoom in" (click)="zoomBy(0.1)">+</button>
+    <button class="icon-btn preview-button" title="Preview PDF" [disabled]="busy()" (click)="previewPdf()">{{ busy() ? '…' : '◉' }}</button>
+    <button class="icon-btn" title="Toggle grid" [class.active]="store.showGrid()" (click)="store.showGrid.update(value => !value)">▦</button>
+    <button class="icon-btn" title="Snap to grid" [class.active]="store.snapToGrid()" (click)="store.snapToGrid.update(value => !value)">⌖</button>
+    <details class="menu-wrap">
+      <summary class="icon-btn" title="Watermark and pagination">◌</summary>
+      <div class="popover watermark-popover">
+        <div class="popover-title">Watermark</div>
+        <label class="check-row"><input type="checkbox" [ngModel]="template().watermark.enabled" (ngModelChange)="setWatermark({ enabled: $event })" /> Enable</label>
+        <label class="field-label">Text<input class="field-input" [ngModel]="template().watermark.text" (ngModelChange)="setWatermark({ text: $event })" /></label>
+        <label class="field-label">Opacity<input type="range" min="0.05" max="0.6" step="0.05" [ngModel]="template().watermark.opacity" (ngModelChange)="setWatermark({ opacity: +$event })" /></label>
+        <div class="popover-title mt-3">Pagination</div>
+        <label class="check-row"><input type="checkbox" [ngModel]="template().pagination.enabled" (ngModelChange)="setPagination({ enabled: $event })" /> Enable</label>
+        <input class="field-input" [ngModel]="template().pagination.format" (ngModelChange)="setPagination({ format: $event })" />
+        <label class="field-label mt-2">Alignment<select class="field-input" [ngModel]="template().pagination.align" (ngModelChange)="setPagination({ align: $event })"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option></select></label>
+      </div>
+    </details>
+    <span class="toolbar-divider"></span>
+    <button class="icon-btn" title="New report" (click)="newReport()">＋</button>
+    <button class="action-btn" title="Browse starter reports" (click)="showGallery.set(true)">▤ <span>Templates</span></button>
+    <button class="action-btn" title="Report data" (click)="showDataBuilder.set(true)"><svg lucideDatabase [size]="15" aria-hidden="true"></svg><span>Data</span></button>
+    @if (reportData()['Synthetic'] === true) { <span class="sample-badge">SAMPLE</span><button class="action-btn" title="Download synthetic aggregate data" (click)="downloadSampleData()"><svg lucideDownload [size]="15" aria-hidden="true"></svg><span>Sample data</span></button> }
+    <button class="action-btn" title="Save template to server" [disabled]="saving()" (click)="save()"><svg lucideSave [size]="15" aria-hidden="true"></svg><span>{{ saving() ? 'Saving...' : 'Save template' }}</span></button>
+    <button class="action-btn" title="Test saved server reports" [disabled]="saving()" (click)="showTestReports.set(true)"><svg lucideFileCheck [size]="15" aria-hidden="true"></svg><span>Test Reports</span></button>
+    <button class="icon-btn" title="Open legacy browser-saved report" (click)="loadSaved()">▱</button>
+    <button class="action-btn dark" (click)="exportJson()">↓ <span>Export</span></button>
+    <label class="action-btn import-btn">↑ <span>Import</span><input type="file" accept="application/json" (change)="importJson($event)" /></label>
+  </header>
+
+  @if (importError()) { <div role="alert" class="shrink-0 border-b border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">Import failed: {{ importError() }}</div> }
+  @if (saveStatus()) { <div role="status" class="shrink-0 border-b border-green-200 bg-green-50 px-3 py-2 text-xs text-green-900">{{ saveStatus() }}</div> }
+  @if (saveError()) { <div role="alert" class="shrink-0 border-b border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">{{ saveError() }}</div> }
+  @if (logoError()) { <div role="alert" class="shrink-0 border-b border-red-200 bg-red-50 px-3 py-2 text-xs text-red-800">{{ logoError() }}</div> }
+  @for (warning of renderWarnings(); track $index) { <div role="status" class="shrink-0 border-b border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-900">{{ warning }}</div> }
+
+  <div class="workspace flex min-h-0 flex-1">
+    <aside class="tools-pane">
+      <div class="section-label">Insert</div>
+      <p class="hint">Click to add, or drag an object to the page.</p>
+      <div class="tool-grid">
+        @for (tool of tools; track tool.type) {
+          <button class="tool-tile" draggable="true" (dragstart)="dragTool($event, tool.type)" (click)="add(tool.type)">
+            @if (tool.type === 'chart') { <svg lucideChartColumn [size]="21" aria-hidden="true"></svg> } @else { <span class="tool-glyph">{{ tool.glyph }}</span> }<span>{{ tool.label }}</span>
+          </button>
+        }
+      </div>
+      <input id="image-upload" class="hidden" type="file" accept="image/*" (change)="onImage($event)" />
+      <input #logoUpload class="hidden" type="file" accept="image/*" aria-label="Logo image file" (change)="onLogoImage($event)" />
+      <div class="section-label mt-6">Header &amp; footer</div>
+      <button class="preset-button header-preset" (click)="addPreset('header')">⌃ <span>Add header template</span></button>
+      <button class="preset-button footer-preset" (click)="addPreset('footer')">⌄ <span>Add footer template</span></button>
+      <div class="section-label mt-6">Variables</div>
+      <div class="variable-list">
+        @for (variable of variables; track variable) {
+          <button draggable="true" (dragstart)="dragVariable($event, variable)" (click)="insertVariable(variable)" class="variable-chip">{{ variable }}</button>
+        }
+      </div>
+      <button class="api-sample" (click)="downloadSample()">↓ <span>Download sample PDF</span></button>
+      <div class="tools-footnote">Report layouts remain JSON-compatible with the .NET rendering API.</div>
+    </aside>
+
+    <main class="canvas-stage" (click)="store.select(null)" (dragover)="$event.preventDefault()" (drop)="onDrop($event)">
+      <div class="canvas-wrap" [style.width]="'calc(' + pageStyle.width + ' + 80px)'" [style.height]="'calc(' + pageStyle.height + ' + 80px)'">
+        <div #page class="page-sheet" [class.grid-on]="store.showGrid()" [style.width]="pageStyle.width" [style.height]="pageStyle.height" [style.--grid-size]="(store.gridSize() * zoom()) + 'px'" (click)="$event.stopPropagation()">
+          <div class="band header-band" [style.height.px]="template().page.margins.top * zoom()">HEADER</div>
+          <div class="band footer-band" [style.height.px]="template().page.margins.bottom * zoom()">FOOTER</div>
+          <div class="margin-guide" [style.left.px]="template().page.margins.left * zoom()" [style.right.px]="template().page.margins.right * zoom()" [style.top.px]="template().page.margins.top * zoom()" [style.bottom.px]="template().page.margins.bottom * zoom()"></div>
+          @if (template().watermark.enabled) { <div class="watermark" [style.opacity]="template().watermark.opacity" [style.color]="template().watermark.color" [style.font-size.px]="template().watermark.fontSize * zoom()" [style.transform]="'translate(-50%, -50%) rotate(' + template().watermark.rotation + 'deg)'">{{ template().watermark.text }}</div> }
+          <div class="canvas-surface"><canvas #canvas></canvas></div>
+          @for (logo of logoSlots(); track logo.id) {
+            @if (logo.type !== 'image' || !$any(logo).src || selected()?.id === logo.id) {
+              <div class="logo-control" [style.left.px]="logo.x * zoom()" [style.top.px]="logo.y * zoom()" [style.width.px]="logo.width * zoom()" [style.height.px]="logo.height * zoom()" [style.transform]="'rotate(' + logo.rotation + 'deg)'">
+                <button type="button" class="logo-upload" [class.logo-replace]="logo.type === 'image' && !!$any(logo).src" [disabled]="logoUploading()" [attr.aria-label]="logo.type === 'image' && $any(logo).src ? 'Replace logo' : 'Upload logo'" [title]="logo.type === 'image' && $any(logo).src ? 'Replace logo' : 'Upload logo'" (click)="$event.stopPropagation(); openLogoPicker(logo.id)">
+                  <svg lucideImagePlus [size]="18"></svg>
+                  @if (logo.type !== 'image' || !$any(logo).src) { <span>Add logo</span> }
+                </button>
+              </div>
+            }
+          }
+        </div>
+      </div>
+      <div class="canvas-status"><span>{{ template().page.width }} × {{ template().page.height }} pt</span><span>{{ template().objects.length }} objects</span><span>100% editable</span></div>
+    </main>
+
+    <aside class="properties-pane" [class.has-selection]="!!selected()">
+      @if (selected(); as item) {
+        <div class="section-label">{{ item.type }} properties</div>
+        <label class="field-label">Name<input class="field-input" [ngModel]="item.name" (ngModelChange)="patch({ name: $event })" (blur)="store.commit()" /></label>
+        <div class="section-label mt-4">Position &amp; size</div>
+        <div class="property-grid">
+          <label class="field-label">X<input class="field-input" type="number" [ngModel]="item.x" (ngModelChange)="patch({ x: +$event })" (blur)="store.commit()" /></label>
+          <label class="field-label">Y<input class="field-input" type="number" [ngModel]="item.y" (ngModelChange)="patch({ y: +$event })" (blur)="store.commit()" /></label>
+          <label class="field-label">Width<input class="field-input" type="number" [ngModel]="item.width" (ngModelChange)="patch({ width: +$event })" (blur)="store.commit()" /></label>
+          <label class="field-label">Height<input class="field-input" type="number" [ngModel]="item.height" (ngModelChange)="patch({ height: +$event })" (blur)="store.commit()" /></label>
+          <label class="field-label">Rotation<input class="field-input" type="number" [ngModel]="item.rotation" (ngModelChange)="patch({ rotation: +$event })" (blur)="store.commit()" /></label>
+          <label class="field-label">Region<select class="field-input" [ngModel]="item.region" (ngModelChange)="patch({ region: $event }, true)"><option value="header">Header</option><option value="body">Body</option><option value="footer">Footer</option></select></label>
+        </div>
+        <div class="align-grid">
+          <button (click)="patch({ x: template().page.margins.left }, true)">Left</button><button (click)="patch({ x: (template().page.width-item.width)/2 }, true)">Center</button><button (click)="patch({ x: template().page.width-template().page.margins.right-item.width }, true)">Right</button>
+        </div>
+        <div class="check-options"><label><input type="checkbox" [ngModel]="item.locked" (ngModelChange)="patch({ locked: $event }, true)" /> Locked</label><label><input type="checkbox" [ngModel]="item.hidden" (ngModelChange)="patch({ hidden: $event }, true)" /> Hidden</label></div>
+        @if (item.type === 'text') {
+          <div class="section-label mt-5">Text</div>
+          <label class="field-label">Content<textarea class="field-input min-h-20" [ngModel]="$any(item).text" (ngModelChange)="patch({ text: $event })" (blur)="store.commit()"></textarea></label>
+          <div class="property-grid mt-2">
+            <label class="field-label">Font<select class="field-input" [ngModel]="$any(item).fontFamily" (ngModelChange)="patch({ fontFamily: $event }, true)"><option>Helvetica</option><option>Arial</option><option>Times New Roman</option><option>Georgia</option><option>Courier New</option></select></label>
+            <label class="field-label">Size<input class="field-input" type="number" [ngModel]="$any(item).fontSize" (ngModelChange)="patch({ fontSize: +$event }, true)" /></label>
+            <label class="field-label">Color<input class="field-input color-input" type="color" [ngModel]="$any(item).color" (ngModelChange)="patch({ color: $event }, true)" /></label>
+            <label class="field-label">Align<select class="field-input" [ngModel]="$any(item).align" (ngModelChange)="patch({ align: $event }, true)"><option value="left">Left</option><option value="center">Center</option><option value="right">Right</option><option value="justify">Justify</option></select></label>
+          </div>
+          <div class="property-grid mt-2"><label class="field-label">Background<input class="field-input color-input" type="color" [ngModel]="$any(item).backgroundColor || '#ffffff'" (ngModelChange)="patch({ backgroundColor: $event }, true)" /></label><label class="field-label">Letter spacing<input class="field-input" type="number" [ngModel]="$any(item).letterSpacing" (ngModelChange)="patch({ letterSpacing: +$event }, true)" /></label></div>
+          <div class="check-options"><label><input type="checkbox" [ngModel]="$any(item).fontWeight === 'bold'" (ngModelChange)="patch({ fontWeight: $event ? 'bold' : 'normal' }, true)" /> Bold</label><label><input type="checkbox" [ngModel]="$any(item).fontStyle === 'italic'" (ngModelChange)="patch({ fontStyle: $event ? 'italic' : 'normal' }, true)" /> Italic</label><label><input type="checkbox" [ngModel]="$any(item).underline" (ngModelChange)="patch({ underline: $event }, true)" /> Underline</label></div>
+        }
+        @if (item.type === 'rect' || item.type === 'circle') {
+          <div class="section-label mt-5">Appearance</div><div class="property-grid"><label class="field-label">Fill<input class="field-input color-input" type="color" [ngModel]="$any(item).fill" (ngModelChange)="patch({ fill: $event }, true)" /></label><label class="field-label">Stroke<input class="field-input color-input" type="color" [ngModel]="$any(item).stroke" (ngModelChange)="patch({ stroke: $event }, true)" /></label><label class="field-label">Stroke width<input class="field-input" type="number" [ngModel]="$any(item).strokeWidth" (ngModelChange)="patch({ strokeWidth: +$event }, true)" /></label>@if (item.type === 'rect') { <label class="field-label">Corner radius<input class="field-input" type="number" [ngModel]="$any(item).rx" (ngModelChange)="patch({ rx: +$event }, true)" /></label> }</div>
+        }
+        @if (item.type === 'image') { <div class="section-label mt-5">Image</div><label class="field-label">Fit<select class="field-input" [ngModel]="$any(item).fit" (ngModelChange)="patch({ fit: $event }, true)"><option value="contain">Contain</option><option value="cover">Cover</option><option value="stretch">Stretch</option></select></label><label class="replace-image">Replace image<input type="file" accept="image/*" (change)="replaceImage($event)" /></label> }
+        @if (item.type === 'qrcode' || item.type === 'barcode') { <div class="section-label mt-5">{{ item.type === 'qrcode' ? 'QR code' : 'Barcode' }}</div><label class="field-label">Variable / data<input class="field-input mono" [ngModel]="$any(item).variable" (ngModelChange)="patch({ variable: $event }, true)" /></label><div class="property-grid mt-2"><label class="field-label">Foreground<input class="field-input color-input" type="color" [ngModel]="$any(item).foreground" (ngModelChange)="patch({ foreground: $event }, true)" /></label><label class="field-label">Background<input class="field-input color-input" type="color" [ngModel]="$any(item).background" (ngModelChange)="patch({ background: $event }, true)" /></label></div> }
+        @if (item.type === 'barcode') { <label class="field-label mt-3">Format<select class="field-input" [ngModel]="$any(item).format" (ngModelChange)="patch({ format: $event }, true)"><option>CODE128</option><option>EAN13</option><option>UPC</option></select></label> }
+        @if (item.type === 'chart') {
+          <div class="section-label mt-5">Chart</div>
+          <label class="field-label">Chart type<select class="field-input" [ngModel]="item.chartType" (ngModelChange)="setChartType($event)"><option value="bar">Grouped bars</option><option value="line">Line</option><option value="donut">Donut</option></select></label>
+          <label class="field-label">Chart title<input class="field-input" maxlength="80" [ngModel]="item.title" (ngModelChange)="patch({ title: $event }, true)" /></label>
+          <label class="field-label">Data source<input class="field-input mono" maxlength="128" [ngModel]="item.dataSource" (ngModelChange)="patch({ dataSource: $event }, true)" /></label>
+          <label class="field-label">Label field<input class="field-input mono" maxlength="128" [ngModel]="item.labelField" (ngModelChange)="patch({ labelField: $event }, true)" /></label>
+          <div class="column-heading"><span>Series</span><button title="Add series" aria-label="Add series" [disabled]="item.series.length >= 4 || item.chartType === 'donut'" (click)="addChartSeries()"><svg lucidePlus [size]="16"></svg></button></div>
+          @for (series of item.series; track $index; let index = $index) {
+            <div class="chart-series-editor">
+              <label class="field-label">Series field<input class="field-input" maxlength="128" [ngModel]="series.field" (ngModelChange)="updateChartSeries(index, { field: $event })" /></label>
+              <label class="field-label">Series label<input class="field-input" maxlength="32" [ngModel]="series.label" (ngModelChange)="updateChartSeries(index, { label: $event })" /></label>
+              <div class="property-grid"><label class="field-label">Color<input class="field-input color-input" type="color" [ngModel]="series.color" (ngModelChange)="updateChartSeries(index, { color: $event })" /></label><button class="icon-btn" title="Remove series" aria-label="Remove series" [disabled]="item.series.length <= 1" (click)="removeChartSeries(index)"><svg lucideTrash2 [size]="16"></svg></button></div>
+            </div>
+          }
+        }
+        @if (item.type === 'table') {
+          <div class="section-label mt-5">Table</div>
+          <label class="field-label">Data source<input class="field-input mono" [ngModel]="$any(item).dataSource" (ngModelChange)="patch({ dataSource: $event }, true)" /></label>
+          <div class="property-grid mt-2"><label class="field-label">Header color<input class="field-input color-input" type="color" [ngModel]="$any(item).headerBg" (ngModelChange)="patch({ headerBg: $event }, true)" /></label><label class="field-label">Header text<input class="field-input color-input" type="color" [ngModel]="$any(item).headerColor" (ngModelChange)="patch({ headerColor: $event }, true)" /></label><label class="field-label">Font size<input class="field-input" type="number" [ngModel]="$any(item).fontSize" (ngModelChange)="patch({ fontSize: +$event }, true)" /></label><label class="field-label">Row height<input class="field-input" type="number" [ngModel]="$any(item).rowHeight" (ngModelChange)="patch({ rowHeight: +$event }, true)" /></label></div>
+          <div class="column-heading"><span>Columns</span><button (click)="addTableColumn()">+ Add column</button></div>
+          @for (column of $any(item).columns; track column.id) { <div class="column-editor"><input class="field-input" aria-label="Column header" [ngModel]="column.header" (ngModelChange)="updateTableColumn(column.id, { header: $event })" /><input class="field-input" aria-label="Column field" [ngModel]="column.field" (ngModelChange)="updateTableColumn(column.id, { field: $event })" /><input class="field-input" aria-label="Column width" type="number" [ngModel]="column.width" (ngModelChange)="updateTableColumn(column.id, { width: +$event })" /></div> }
+        }
+      } @else {
+        <div class="section-label">Page setup</div>
+        <p class="hint">Choose an object to edit its position, size, typography, and appearance.</p>
+        <div class="section-label mt-5">Margins (pt)</div>
+        <div class="property-grid">
+          @for (side of ['top', 'right', 'bottom', 'left']; track side) {
+            <label class="field-label">{{ side }}<input class="field-input" type="number" [ngModel]="$any(template().page.margins)[side]" (ngModelChange)="updateMargin($any(side), +$event)" /></label>
+          }
+        </div>
+      }
+    </aside>
+  </div>
+
+  <section class="layers-strip">
+    <div class="layers-heading"><span>Layers</span><span class="layer-count">{{ template().objects.length }}</span></div>
+    <div class="layer-list">
+      @for (item of template().objects.slice().reverse(); track item.id) {
+        <div class="layer-row" [class.selected-layer]="selected()?.id === item.id" (click)="select(item.id)">
+          <span class="layer-type">{{ item.type === 'text' ? 'T' : item.type === 'table' ? '▤' : item.type === 'image' ? '▧' : '◇' }}</span><span class="layer-name">{{ item.name }}</span><span class="layer-region">{{ item.region }}</span>
+          <button title="Move up" (click)="$event.stopPropagation();store.move(item.id, 1)">↑</button><button title="Move down" (click)="$event.stopPropagation();store.move(item.id, -1)">↓</button>
+          <button title="Duplicate" (click)="$event.stopPropagation();store.duplicate(item.id)">⧉</button><button title="Delete" class="delete-layer" (click)="$event.stopPropagation();store.remove(item.id)">×</button>
+        </div>
+      } @empty { <span class="layers-empty">No objects on this report yet.</span> }
+    </div>
+  </section>
+
+  @if (showGallery()) {
+    <div class="modal-backdrop" (click)="showGallery.set(false)">
+      <section class="gallery-modal" (click)="$event.stopPropagation()">
+        <header class="gallery-header"><div><span class="section-label">REPORT LIBRARY</span><h2>Starter templates</h2></div><button class="icon-btn" title="Close" (click)="showGallery.set(false)">×</button></header>
+        <div class="gallery-filter"><input class="field-input" placeholder="Search reports" [ngModel]="search()" (ngModelChange)="search.set($event)" /><select class="field-input" [ngModel]="category()" (ngModelChange)="category.set($event)"><option>All</option>@for (item of categories; track item) { <option>{{ item }}</option> }</select></div>
+        <div class="gallery-grid">
+          @for (item of filteredTemplates; track item.name) { <button class="template-card" (click)="chooseTemplate(item.name)"><span class="template-category">{{ item.category }}</span><strong>{{ item.name }}</strong><span>{{ item.description }}</span><i>Open template →</i></button> }
+          @empty { <div class="gallery-empty">No reports match that search.</div> }
+        </div>
+      </section>
+    </div>
+  }
+  @if (previewUrl() || previewError()) {
+    <div class="modal-backdrop preview-backdrop" (click)="closePreview()">
+      <section class="preview-modal" (click)="$event.stopPropagation()"><header class="gallery-header"><div><span class="section-label">RENDER PREVIEW</span><h2>{{ template().name }}</h2></div><button class="icon-btn" title="Close preview" (click)="closePreview()">×</button></header>
+        @if (previewError()) { <p class="preview-error">{{ previewError() }}</p> }
+        @if (previewUrl()) { <iframe title="Generated PDF preview" [src]="trustedPreviewUrl()" class="pdf-frame"></iframe><a class="action-btn dark download-pdf" [href]="previewUrl()" [attr.download]="template().name + '.pdf'">↓ Download PDF</a> }
+      </section>
+    </div>
+  }
+</div>

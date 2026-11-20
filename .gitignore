@@ -1,0 +1,8 @@
+.DS_Store
+node_modules/
+frontend/.angular/
+frontend/dist/
+backend/bin/
+backend/obj/
+*.user
+*.suo

@@ -1,0 +1,18 @@
+{
+  "name": "autobanker-reports-manager",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "setup": "npm --prefix frontend ci --legacy-peer-deps && dotnet restore backend/AutobankerReportsManager.csproj",
+    "start:frontend": "npm --prefix frontend start",
+    "start:backend": "dotnet run --project backend/AutobankerReportsManager.csproj --urls http://127.0.0.1:5081",
+    "build:frontend": "npm --prefix frontend run build",
+    "build:backend": "dotnet build backend/AutobankerReportsManager.csproj",
+    "build": "npm run build:frontend && npm run build:backend",
+    "test:frontend": "npm --prefix frontend run test-once",
+    "test:engine": "dotnet run --project tests/ExportChecks/ExportChecks.csproj",
+    "test:api": "node tests/report-api-checks.mjs",
+    "test:templates": "node tests/template-api-checks.mjs",
+    "test": "npm run test:frontend && npm run test:engine"
+  }
+}

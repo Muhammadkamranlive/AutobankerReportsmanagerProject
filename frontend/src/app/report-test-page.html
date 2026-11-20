@@ -1,0 +1,33 @@
+<main class="test-page" aria-label="Test Reports">
+  <header class="test-header">
+    <button class="icon-button" title="Back to designer" aria-label="Back to designer" [disabled]="busy()" (click)="closed.emit()"><svg lucideArrowLeft [size]="19"></svg></button>
+    <div><span class="brand">Autobanker Reports Manager</span><h1>Test Reports</h1></div>
+    <span class="sample-tag">SYNTHETIC DATA</span>
+  </header>
+  @if (error()) { <div class="error" role="alert">{{ error() }}</div> }
+  <div class="test-toolbar">
+    <label>Server template<select aria-label="Server template" [ngModel]="selectedId()" (ngModelChange)="select($event)" [disabled]="busy()">
+      @if (!templates().length) { <option value="">No saved templates</option> }
+      @for (template of templates(); track template.id) { <option [value]="template.id">{{ template.name }}</option> }
+    </select></label>
+    <button class="icon-button" title="Refresh server templates" aria-label="Refresh server templates" [disabled]="busy()" (click)="refresh()"><svg lucideRefreshCw [size]="17"></svg></button>
+    <button [disabled]="busy() || !selected()" (click)="opened.emit(selected()!)"><svg lucideFolderOpen [size]="16"></svg>Open in designer</button>
+    <button class="primary" [disabled]="busy() || !selected()" (click)="generate()"><svg lucideFileCheck [size]="16"></svg>{{ busy() ? 'Working...' : 'Generate test report' }}</button>
+  </div>
+  <div class="test-body">
+    <section class="report-output" aria-label="Generated report">
+      <div class="download-bar">
+        @for (format of ['pdf', 'csv', 'xlsx', 'docx', 'zip']; track format) {
+          <button [disabled]="!result() || busy()" (click)="download(format)"><svg lucideDownload [size]="15"></svg>{{ format === 'xlsx' ? 'Excel' : format === 'docx' ? 'Word' : format === 'zip' ? 'All files (ZIP)' : format.toUpperCase() }}</button>
+        }
+      </div>
+      @if (previewUrl()) { <iframe title="Generated test report PDF" [src]="trustedPreview()"></iframe> }
+      @else { <div class="empty-output"><svg lucideFileCheck [size]="40"></svg><strong>{{ busy() ? 'Preparing report...' : 'No generated report' }}</strong></div> }
+      @if (result(); as result) { <div class="generation-status" role="status">{{ result.name }} · {{ result.generatedAtUtc }}<span>Data SHA-256: {{ result.dataSha256 }}</span></div> }
+    </section>
+    <aside class="data-panel">
+      <header><h2>Test data</h2><button class="icon-button" title="Download test data JSON" aria-label="Download test data JSON" [disabled]="!selected()" (click)="downloadData()"><svg lucideDownload [size]="17"></svg></button></header>
+      <pre tabindex="0">{{ dataText() }}</pre>
+    </aside>
+  </div>
+</main>

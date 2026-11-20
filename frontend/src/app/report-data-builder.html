@@ -1,0 +1,103 @@
+<dialog #dialog aria-labelledby="data-builder-title" (cancel)="$event.preventDefault(); close()" (keydown.escape)="$event.preventDefault(); $event.stopPropagation(); close()">
+  <div class="builder">
+    <header class="builder-header">
+      <h2 id="data-builder-title"><svg lucideDatabase [size]="20" aria-hidden="true"></svg> Report data</h2>
+      <button class="icon" type="button" title="Close data builder" aria-label="Close data builder" (click)="close()"><svg lucideX [size]="18"></svg></button>
+    </header>
+    <div class="builder-toolbar">
+      <button type="button" [disabled]="!canExecute()" (click)="saveQuery()"><svg lucideSave [size]="15"></svg> Save query</button>
+      <button type="button" [disabled]="fileBusy()" (click)="queryFile.click()"><svg lucideUpload [size]="15"></svg> Load query</button>
+      <input #queryFile hidden type="file" accept=".json,application/json" aria-label="Load query JSON" (change)="importFile($event, true)" />
+      <button type="button" (click)="resetSample()"><svg lucideDatabase [size]="15"></svg> Sample collections</button>
+      <span class="environment">Local development</span>
+    </div>
+    <div class="builder-body">
+      <aside class="sources" aria-label="Source collections">
+        <h3>{{ collectionLabel() }}</h3>
+        <label>Array source alias<input [ngModel]="uploadAlias()" (ngModelChange)="uploadAlias.set($event)" /></label>
+        <button class="upload" type="button" [disabled]="fileBusy()" (click)="sourceFile.click()"><svg lucideUpload [size]="16"></svg> {{ fileBusy() ? 'Reading JSON' : 'Upload JSON' }}</button>
+        <input #sourceFile hidden type="file" accept=".json,application/json" aria-label="Upload collection JSON" (change)="importFile($event)" />
+        @for (source of query().sources; track $index; let sourceIndex = $index) {
+          <div class="source-row">
+            <label>Source alias<input [attr.aria-label]="'Source alias ' + (sourceIndex + 1)" [ngModel]="source.alias" (ngModelChange)="renameSource(source.alias, $event)" /></label>
+            <button type="button" class="icon danger" [attr.aria-label]="'Remove source ' + source.alias" [title]="'Remove source ' + source.alias" (click)="removeSource(sourceIndex)"><svg lucideTrash2 [size]="16"></svg></button>
+            <span class="source-count">{{ source.rows.length }} rows / {{ source.fields.length }} fields</span>
+            <details><summary>Fields</summary><ul>@for (field of source.fields; track field) { <li>{{ field }}</li> }</ul></details>
+          </div>
+        }
+      </aside>
+      <main class="query-editor">
+        <section aria-labelledby="join-heading">
+          <div class="section-heading"><h3 id="join-heading">Sources &amp; joins</h3><button type="button" [disabled]="activeSources().length >= query().sources.length" (click)="addJoin()"><svg lucidePlus [size]="14"></svg> Join</button></div>
+          <label class="from-field">From<select [ngModel]="query().from" (ngModelChange)="setFrom($event)">@for (source of query().sources; track $index) { <option [value]="source.alias">{{ source.alias }}</option> }</select></label>
+          @for (join of query().joins; track $index; let joinIndex = $index) {
+            <div class="join-row">
+              <label>Join<select [ngModel]="join.kind" (ngModelChange)="patchJoin(joinIndex, {kind: $event})"><option value="inner">INNER</option><option value="left">LEFT</option></select></label>
+              <label>Source<select [ngModel]="join.source" (ngModelChange)="patchJoin(joinIndex, {source: $event})">@for (source of query().sources; track $index) { <option [value]="source.alias" [disabled]="activeSources().includes(source.alias) && source.alias !== join.source">{{ source.alias }}</option> }</select></label>
+              <label>Left field<select [ngModel]="join.left" (ngModelChange)="patchJoin(joinIndex, {left: $event})"><option value="">Choose field</option>@for (field of joinLeftFields(joinIndex); track field) { <option [value]="field">{{ field }}</option> }</select></label>
+              <label>Right field<select [ngModel]="join.right" (ngModelChange)="patchJoin(joinIndex, {right: $event})"><option value="">Choose field</option>@for (field of sourceFields(join.source); track field) { <option [value]="join.source + '.' + field">{{ join.source }}.{{ field }}</option> }</select></label>
+              <button type="button" class="icon danger" title="Remove join" aria-label="Remove join" (click)="removeJoin(joinIndex)"><svg lucideTrash2 [size]="16"></svg></button>
+            </div>
+          }
+        </section>
+        <section aria-labelledby="projection-heading">
+          <div class="section-heading"><h3 id="projection-heading">Output columns</h3><div class="actions"><button type="button" (click)="addProjection('*')"><svg lucidePlus [size]="14"></svg> Count rows</button><button type="button" [disabled]="!availableFields().length" (click)="addProjection()"><svg lucidePlus [size]="14"></svg> Column</button></div></div>
+          <details class="field-picker"><summary>Include fields</summary><div class="field-checks">@for (field of availableFields(); track field) { <label class="check"><input type="checkbox" [ngModel]="included(field)" (ngModelChange)="toggleField(field, $event)" />{{ field }}</label> }</div></details>
+          @for (column of query().select; track $index; let columnIndex = $index) {
+            <div class="projection-row">
+              <label>Field<select [ngModel]="column.field" (ngModelChange)="patchProjection(columnIndex, {field: $event})"><option value="*">* (row count)</option>@for (field of availableFields(); track field) { <option [value]="field">{{ field }}</option> }</select></label>
+              <label>Output alias<input [ngModel]="column.alias" (ngModelChange)="patchProjection(columnIndex, {alias: $event})" /></label>
+              <label>Aggregate<select [ngModel]="column.aggregate" (ngModelChange)="patchProjection(columnIndex, {aggregate: $event})">@for (aggregate of aggregates; track aggregate) { <option [value]="aggregate">{{ aggregate }}</option> }</select></label>
+              <button type="button" class="icon danger" title="Remove output column" aria-label="Remove output column" (click)="removeProjection(columnIndex)"><svg lucideTrash2 [size]="16"></svg></button>
+            </div>
+          }
+        </section>
+        <section aria-labelledby="group-heading">
+          <h3 id="group-heading">Group by</h3>
+          <div class="field-checks">@for (field of availableFields(); track field) { <label class="check"><input type="checkbox" [ngModel]="query().groupBy.includes(field)" (ngModelChange)="toggleGroup(field, $event)" />{{ field }}</label> }</div>
+        </section>
+        <section aria-labelledby="filter-heading">
+          <div class="section-heading"><h3 id="filter-heading">Filters</h3><button type="button" [disabled]="!availableFields().length" (click)="addFilter()"><svg lucidePlus [size]="14"></svg> Filter</button></div>
+          @for (filter of query().filters; track $index; let filterIndex = $index) {
+            <div class="filter-row">
+              <label>Field<select [ngModel]="filter.field" (ngModelChange)="patchFilter(filterIndex, {field: $event})">@for (field of availableFields(); track field) { <option [value]="field">{{ field }}</option> }</select></label>
+              <label>Operator<select [ngModel]="filter.operator" (ngModelChange)="patchFilter(filterIndex, {operator: $event})">@for (operator of operators; track operator) { <option [value]="operator">{{ operator }}</option> }</select></label>
+              @if (filter.operator !== 'isNull' && filter.operator !== 'notNull') {
+                <label>Value type<select [ngModel]="filter.mode" (ngModelChange)="patchFilter(filterIndex, {mode: $event})"><option value="auto">Field type</option><option value="string">String</option><option value="json">JSON scalar</option></select></label>
+                <label>Value
+                  @if (isBoolean(filter)) { <select [ngModel]="filter.raw" (ngModelChange)="patchFilter(filterIndex, {raw: $event})"><option value="true">true</option><option value="false">false</option></select> }
+                  @else { <input [type]="filterInputType(filter)" step="any" [ngModel]="filter.raw" (ngModelChange)="patchFilter(filterIndex, {raw: $event === null ? '' : '' + $event})" /> }
+                </label>
+              }
+              <button type="button" class="icon danger" title="Remove filter" aria-label="Remove filter" (click)="removeFilter(filterIndex)"><svg lucideTrash2 [size]="16"></svg></button>
+            </div>
+          }
+        </section>
+        <section aria-labelledby="sort-heading">
+          <div class="section-heading"><h3 id="sort-heading">Sort</h3><button type="button" [disabled]="query().sort.length >= query().select.length" (click)="addSort()"><svg lucidePlus [size]="14"></svg> Sort</button></div>
+          @for (sort of query().sort; track $index; let sortIndex = $index) {
+            <div class="sort-row">
+              <label>Output column<select [ngModel]="sort.field" (ngModelChange)="patchSort(sortIndex, {field: $event})">@for (column of query().select; track $index) { <option [value]="column.alias">{{ column.alias }}</option> }</select></label>
+              <label>Direction<select [ngModel]="sort.descending" (ngModelChange)="patchSort(sortIndex, {descending: $event})"><option [ngValue]="false">Ascending</option><option [ngValue]="true">Descending</option></select></label>
+              <button type="button" class="icon danger" title="Remove sort" aria-label="Remove sort" (click)="removeSort(sortIndex)"><svg lucideTrash2 [size]="16"></svg></button>
+            </div>
+          }
+        </section>
+        <section class="results" aria-labelledby="results-heading" [attr.aria-busy]="!!busy()">
+          <div class="section-heading"><h3 id="results-heading">Results</h3>@if (result(); as result) { <span role="status">{{ result.rows.length }} rows / {{ result.inputRows }} input rows / {{ previewRows().length }} shown</span> }</div>
+          @if (result(); as result) {
+            <div class="result-grid" tabindex="0" aria-label="Query result rows"><table><thead><tr>@for (column of result.columns; track column.field) { <th scope="col">{{ column.header }}</th> }</tr></thead><tbody>@for (row of previewRows(); track $index) { <tr>@for (column of result.columns; track column.field) { <td [title]="cell(row[column.field])">{{ cell(row[column.field]) }}</td> }</tr> } @empty { <tr><td [attr.colspan]="result.columns.length">No matching rows</td></tr> }</tbody></table></div>
+          } @else { <div class="empty-result">{{ busy() || 'Not executed' }}</div> }
+        </section>
+      </main>
+    </div>
+    <footer>
+      <div class="status" aria-live="polite">@if (error()) { <span class="error" role="alert">{{ error() }}</span> } @else if (validation()) { <span class="validation">{{ validation() }}</span> } @else { <span>{{ busy() || binding() }}</span> }</div>
+      <div class="footer-actions">
+        <button type="button" class="primary" [disabled]="!canExecute()" (click)="execute()"><svg lucidePlay [size]="15"></svg> Execute</button>
+        @for (artifact of artifacts; track artifact.format) { <button type="button" [disabled]="!canExport(artifact.format)" [title]="exportReason(artifact.format) || artifact.label" (click)="exportResult(artifact.format)"><svg lucideDownload [size]="15"></svg> {{ artifact.label }}</button> }
+        <button type="button" class="primary" [disabled]="!canUseResult()" (click)="apply()"><svg lucideCheck [size]="16"></svg> Apply to report</button>
+      </div>
+    </footer>
+  </div>
+</dialog>

@@ -1,0 +1,54 @@
+{
+  // For more information, visit: https://go.microsoft.com/fwlink/?LinkId=733558
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "type": "npm",
+      "script": "build",
+      "label": "build",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "test-once",
+      "label": "test-once",
+      "group": "test",
+      "problemMatcher": []
+    },
+    {
+      "type": "npm",
+      "script": "start",
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "typescript",
+        "pattern": "$tsc",
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": {
+            "regexp": "Changes detected"
+          },
+          "endsPattern": {
+            "regexp": "bundle generation (complete|failed)"
+          }
+        }
+      }
+    },
+    {
+      "type": "shell",
+      "label": "backend-start",
+      "command": "dotnet",
+      "args": ["run", "--project", "../backend/AutobankerReportsManager.csproj", "--urls", "http://127.0.0.1:5081"],
+      "isBackground": true,
+      "problemMatcher": {
+        "owner": "backend",
+        "pattern": { "regexp": "^$" },
+        "background": {
+          "activeOnStart": true,
+          "beginsPattern": ".*",
+          "endsPattern": "Now listening on: http://127\\.0\\.0\\.1:5081"
+        }
+      }
+    }
+  ]
+}

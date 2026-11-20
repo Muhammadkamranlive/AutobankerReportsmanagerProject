@@ -1,0 +1,20 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Autobanker Reports Manager",
+      "type": "pwa-chrome",
+      "request": "launch",
+      "preLaunchTask": "start-all",
+      "url": "http://localhost:4201/",
+      "webRoot": "${workspaceFolder}/frontend"
+    },
+    {
+      "name": "Angular tests",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "npm test",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

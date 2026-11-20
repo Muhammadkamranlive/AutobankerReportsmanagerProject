@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "CiRSIxidkRE=",
+  "success": true,
+  "projectFilePath": "/Users/kamran/Documents/Codex/autobanker-reports-manager/tests/ExportChecks/ExportChecks.csproj",
+  "expectedPackageFiles": [
+    "/Users/kamran/.nuget/packages/microsoft.netcore.app.ref/8.0.20/microsoft.netcore.app.ref.8.0.20.nupkg.sha512",
+    "/Users/kamran/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.20/microsoft.aspnetcore.app.ref.8.0.20.nupkg.sha512",
+    "/Users/kamran/.nuget/packages/microsoft.netcore.app.host.osx-x64/8.0.20/microsoft.netcore.app.host.osx-x64.8.0.20.nupkg.sha512"
+  ],
+  "logs": []
+}

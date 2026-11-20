@@ -1,0 +1,14 @@
+/Users/kamran/Documents/Codex/autobanker-reports-manager/tests/ExportChecks/bin/Debug/net8.0/ExportChecks
+/Users/kamran/Documents/Codex/autobanker-reports-manager/tests/ExportChecks/bin/Debug/net8.0/ExportChecks.deps.json
+/Users/kamran/Documents/Codex/autobanker-reports-manager/tests/ExportChecks/bin/Debug/net8.0/ExportChecks.runtimeconfig.json
+/Users/kamran/Documents/Codex/autobanker-reports-manager/tests/ExportChecks/bin/Debug/net8.0/ExportChecks.dll
+/Users/kamran/Documents/Codex/autobanker-reports-manager/tests/ExportChecks/bin/Debug/net8.0/ExportChecks.pdb
+/Users/kamran/Documents/Codex/autobanker-reports-manager/tests/ExportChecks/obj/Debug/net8.0/ExportChecks.GeneratedMSBuildEditorConfig.editorconfig
+/Users/kamran/Documents/Codex/autobanker-reports-manager/tests/ExportChecks/obj/Debug/net8.0/ExportChecks.AssemblyInfoInputs.cache
+/Users/kamran/Documents/Codex/autobanker-reports-manager/tests/ExportChecks/obj/Debug/net8.0/ExportChecks.AssemblyInfo.cs
+/Users/kamran/Documents/Codex/autobanker-reports-manager/tests/ExportChecks/obj/Debug/net8.0/ExportChecks.csproj.CoreCompileInputs.cache
+/Users/kamran/Documents/Codex/autobanker-reports-manager/tests/ExportChecks/obj/Debug/net8.0/ExportChecks.dll
+/Users/kamran/Documents/Codex/autobanker-reports-manager/tests/ExportChecks/obj/Debug/net8.0/refint/ExportChecks.dll
+/Users/kamran/Documents/Codex/autobanker-reports-manager/tests/ExportChecks/obj/Debug/net8.0/ExportChecks.pdb
+/Users/kamran/Documents/Codex/autobanker-reports-manager/tests/ExportChecks/obj/Debug/net8.0/ExportChecks.genruntimeconfig.cache
+/Users/kamran/Documents/Codex/autobanker-reports-manager/tests/ExportChecks/obj/Debug/net8.0/ref/ExportChecks.dll
